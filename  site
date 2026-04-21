@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Каталог одежды</title>
+
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #111827;
+      --border: #e5e7eb;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    h1 {
+      margin: 4px 0 16px;
+      font-size: 22px;
+    }
+
+    .catalog {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 12px;
+    }
+
+    .product {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .15s ease;
+    }
+
+    .product:hover { transform: translateY(-2px); }
+
+    .product img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .product-body {
+      padding: 10px;
+    }
+
+    .product-title {
+      font-size: 14px;
+      margin: 0 0 6px;
+    }
+
+    .product-price {
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    /* Модалка карточки товара */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1000;
+    }
+
+    .modal.active { display: flex; }
+
+    .modal-card {
+      width: 100%;
+      max-width: 500px;
+      background: var(--card);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .modal-card img {
+      width: 100%;
+      height: 290px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .modal-content {
+      padding: 14px;
+    }
+
+    .modal-title {
+      margin: 0 0 8px;
+      font-size: 20px;
+    }
+
+    .modal-price {
+      margin: 0 0 10px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .modal-desc {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .close-btn {
+      margin-top: 14px;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Каталог одежды</h1>
+    <div class="catalog" id="catalog"></div>
+  </div>
+
+  <!-- Карточка товара -->
+  <div class="modal" id="productModal">
+    <div class="modal-card">
+      <img id="modalImg" src="" alt="Товар" />
+      <div class="modal-content">
+        <h2 class="modal-title" id="modalTitle"></h2>
+        <p class="modal-price" id="modalPrice"></p>
+        <p class="modal-desc" id="modalDesc"></p>
+        <button class="close-btn" id="closeModal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Инициализация Telegram Mini App
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
+      tg.ready();
+    }
+
+    // Пример товаров (замени на свои данные)
+    const products = [
+      {
+        id: 1,
+        title: "Худи Oversize",
+        price: 3490,
+        image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=1200&auto=format&fit=crop",
+        description: "Мягкое худи из хлопка, свободный крой. Размеры: S, M, L, XL."
+      },
+      {
+        id: 2,
+        title: "Футболка Basic",
+        price: 1490,
+        image: "https://images.unsplash.com/photo-1527719327859-c6ce80353573?q=80&w=1200&auto=format&fit=crop",
+        description: "Базовая футболка из плотного хлопка. Универсальный стиль на каждый день."
+      },
+      {
+        id: 3,
+        title: "Джинсовая куртка",
+        price: 4990,
+        image: "https://images.unsplash.com/photo-1543076447-215ad9ba6923?q=80&w=1200&auto=format&fit=crop",
+        description: "Классическая джинсовая куртка, прочный материал, актуальный фасон."
+      },
+      {
+        id: 4,
+        title: "Кеды белые",
+        price: 4290,
+        image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1200&auto=format&fit=crop",
+        description: "Легкие кеды на каждый день. Размеры: 36–45."
+      }
+    ];
+
+    const catalog = document.getElementById("catalog");
+    const modal = document.getElementById("productModal");
+    const modalImg = document.getElementById("modalImg");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalPrice = document.getElementById("modalPrice");
+    const modalDesc = document.getElementById("modalDesc");
+    const closeModal = document.getElementById("closeModal");
+
+    function formatPrice(value) {
+      return new Intl.NumberFormat("ru-RU").format(value) + " ₽";
+    }
+
+    function openProductCard(product) {
+      modalImg.src = product.image;
+      modalTitle.textContent = product.title;
+      modalPrice.textContent = formatPrice(product.price);
+      modalDesc.textContent = product.description;
+      modal.classList.add("active");
+    }
+
+    function renderCatalog() {
+      catalog.innerHTML = "";
+      products.forEach(product => {
+        const item = document.createElement("article");
+        item.className = "product";
+        item.innerHTML = `
+          <img src="${product.image}" alt="${product.title}" />
+          <div class="product-body">
+            <h3 class="product-title">${product.title}</h3>
+            <div class="product-price">${formatPrice(product.price)}</div>
+          </div>
+        `;
+        item.addEventListener("click", () => openProductCard(product));
+        catalog.appendChild(item);
+      });
+    }
+
+    closeModal.addEventListener("click", () => modal.classList.remove("active"));
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.classList.remove("active");
+    });
+
+    renderCatalog();
+  </script>
+</body>
+</html>
